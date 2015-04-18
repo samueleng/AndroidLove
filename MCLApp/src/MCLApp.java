@@ -1,25 +1,40 @@
+
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import static java.lang.Math.max;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.StringTokenizer;
+import java.util.TreeSet;
 import java.util.Vector;
 
 public class MCLApp{
         /*File path name*/
 	//public static String dataFilePath = "attweb_net.txt";  
         //public static String dataFilePath = "facebook1.txt"; 
-        public static String dataFilePath = "group_143172239092727_2015_03_27_04_45_26_1195ced1bc8aece2f2b5d1587398afdb - Copy.csv";
-        public static String dataFilePath2 = "yeast_undirected_metabolic.txt";  
-        
+        //public static String dataFilePath = "attweb_net.txt";
+        public static String dataFilePath = "attweb_net.txt";  
+        public static int size=0; 
+        public static int dimensions; 
+        public static int clusters;  
+        public static int numberKeys=0;
+     public static HashMap<String,Integer> stringToID=new HashMap<String,Integer>(); 
+     public static TreeSet<Integer> tempBuffer=new TreeSet<Integer>(); 
+     public static ArrayList<Integer> tempList=new ArrayList<Integer>();
         /*For the time complexity issue number of entries and nodes is bounded*/
-	public static int numberOfEntries = 2000;
-	public static int numberOfNodes = 1000;
+	public static int numberOfEntries = 228 ;
+	public static int numberOfNodes = 180;
 	public static int adjMatrix[][] = new int[numberOfNodes][numberOfNodes]; 
 	public static double transMatrix[][] = new double[numberOfNodes][numberOfNodes];  
         
@@ -27,7 +42,8 @@ public class MCLApp{
         flow to connect different regions of the graph. */
 	public static int power = 2; //expansion power of 2 as default
         /*The inflation parameter affects cluster granularity*/
-	public static double inflate = 2; //inflation of 2 (squaring) 
+	public static double inflate = 2; //inflation of 2 (squaring)  
+
         
 	public static void convertToGraph(String input)
 	{ 
@@ -45,11 +61,14 @@ public class MCLApp{
                 
 	} 
 
-	public static void readData()
+	public static void readData() throws FileNotFoundException, IOException
 	{
 		String input;
 		FileInputStream file_in; 
-                BufferedReader data_in; 
+                BufferedReader data_in;  
+                String current_line;  
+                int id=0;
+                BufferedReader inFile = new BufferedReader(new FileReader(dataFilePath));	
         try
         {
         	file_in = new FileInputStream("test/"+dataFilePath);
@@ -65,9 +84,29 @@ public class MCLApp{
 		catch(Exception e)
 		{
 			e.printStackTrace();
-		}
+		} 
+                 
+                    
+		while((current_line=inFile.readLine()) != null){			
+			StringTokenizer items; 
+                        items = new StringTokenizer(current_line, "\t");
+			
+		    items = new StringTokenizer(current_line, " ");
+			
+			while(items.hasMoreTokens()){
+				String token=items.nextToken();
+				if(!stringToID.containsKey(token)){
+					stringToID.put(token, id);
+					id++;
+				}
+				
+				tempBuffer.add(stringToID.get(token));
+				tempList.add(stringToID.get(token));	
+			}
+			
 
-	}
+            } 
+        }
         public static void printMatrix(double[][] matrix)
 	{
 		for(int i=0;i<numberOfNodes;i++)
@@ -152,16 +191,20 @@ public class MCLApp{
 		System.out.println("Iteration "+iteration);
 		transMatrix = expand();
 		inflate();
-		iteration++;
+		iteration++; 
+                normalise();
 		while(!checkConvergence()){
 			System.out.println("Iteration "+iteration);
 			transMatrix = expand();
 			inflate();
-			iteration++;
+			iteration++; 
+                        prune();
 		}
 		//System.out.println("Convergence Reached. The Matrix is: ");
 		//printMatrix(transMatrix);
-		System.out.println("The number of clusters are: "+findClusters());
+		System.out.println("The number of clusters are: "+findClusters());   
+                writeClusters();
+                
 	}
 	/*Convergence to a state where probability is steady such that every column value has the same 
           number. Returns a true/false value*/
@@ -193,7 +236,7 @@ public class MCLApp{
         lying in the same cluster will, in general, be relatively large as there are many ways of going from one to the other. */
 	public static double[][] expand(){
 		double[][] matrix = new double[numberOfNodes][numberOfNodes];
-		int  p = power;   
+		int  p = power;    
 		while(p>1){
 			for(int i = 0;i<numberOfNodes;i++){ 
 				for(int j = 0;j<numberOfNodes;j++){
@@ -215,6 +258,73 @@ public class MCLApp{
             The inflation parameter, r (in this case; variable inflate), controls the extent of this
             strengthening / weakening. (In the end, this
             influences the granularity of clusters.)*/ 
+        public static void writeClusters() throws IOException{ 
+              
+		//Printing the clusters
+		ArrayList<Integer> clusterElements=new ArrayList<Integer>();
+		TreeSet<String> checkSet=new TreeSet<String>();
+		HashMap<String,Integer> fileMap=new HashMap<String,Integer>();
+		System.out.println("************* FINAL CLUSTERS ************");
+		
+		BufferedWriter writer = new BufferedWriter(new FileWriter(dataFilePath+".clu"));
+		
+		int clusterNumber=0;
+		for(int i=0;i<numberOfNodes;i++){
+			
+			for(int j=0;j<numberOfNodes;j++){
+				double check=transMatrix[i][j];
+				if(check!=0)						
+					clusterElements.add(j);		
+			}
+			
+			if(clusterElements.size()>0)
+			{
+				clusterNumber++; 
+				clusters=0;
+				System.out.print("Cluster Number "+clusterNumber +":" + "{");
+				for(Integer e:clusterElements)
+				{	
+										
+					for(String key:stringToID.keySet()){
+						int value=stringToID.get(key);
+						if(value==e)							
+						{	
+							if(!checkSet.contains(key))
+							{
+								System.out.print(key+",");
+								fileMap.put(key, clusterNumber);
+							}
+							
+							checkSet.add(key);
+							numberKeys++;
+						}	
+					}
+					
+				}	
+				System.out.println("}");
+				
+				
+			}
+			clusters++;
+			 
+			  clusterElements.clear();
+		}		
+		//System.out.println("Total number of clusters : "+clusters);
+		//Writing to File
+		writer.write("*Vertices "+numberOfNodes);
+		writer.newLine();
+		
+		
+		for(String key: stringToID.keySet()){
+			
+			int value=fileMap.get(key);
+			String toWrite=String.valueOf(value);
+			writer.write(toWrite);
+			writer.newLine();
+		}
+		
+		writer.close();
+	}	
         
 	public static void inflate(){
 		double[] sum = new double[numberOfNodes];  
@@ -231,7 +341,44 @@ public class MCLApp{
 			}
 		}
 	}
-	
+	public static void prune(){ 
+            double[][] matrix = new double[numberOfNodes][numberOfNodes]; 
+            double avg, mx;  
+            int i,j,k;
+            for(i = 0;i<numberOfNodes;i++){
+			for(j = 0;j<numberOfNodes;j++){
+				matrix[i][j] = transMatrix[i][j];
+			}
+		} 
+            for (j=0; j<numberOfNodes;j++){ 
+                avg = 0; 
+                mx = -1.0; 
+                for (k = 0; k <numberOfNodes; k++){ 
+                    avg = avg + matrix[k][j]; 
+                    mx = max(mx,matrix[k][j]);
+                } 
+                avg = avg/(numberOfNodes-1); 
+                double threshold = avg/4; 
+                for (i = 0; i<numberOfNodes; i++){ 
+                    if (transMatrix[i][j] < threshold){ 
+                        transMatrix[i][j] = 0;
+                    }
+                }
+            } 
+            normalise();
+        } 
+        public static void normalise(){ 
+            double csum; 
+            for (int j = 0; j<numberOfNodes; j++){ 
+                csum = 0; 
+                for (int k = 0; k< numberOfNodes; k++){ 
+                    csum = csum + transMatrix[k][j]; 
+                } 
+                for (int i =0; i<numberOfNodes; i++){ 
+                    transMatrix[i][j] = transMatrix[i][j]/csum;
+                }
+            }
+        }
 	public static int findClusters() throws IOException{ 
                 //File f = new File("yeastoutput.txt"); 
 		File f = new File("attoutput2.txt"); 

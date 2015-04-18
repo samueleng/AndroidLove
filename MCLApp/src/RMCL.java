@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import static java.lang.Math.max;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
 import java.util.Vector;
@@ -20,6 +21,7 @@ public class RMCL{
 	public static int numberOfNodes = 180;
 	public static int adjMatrix[][] = new int[numberOfNodes][numberOfNodes]; 
 	public static double transMatrix[][] = new double[numberOfNodes][numberOfNodes];  
+        public static double conv[][] = new double[numberOfNodes][numberOfNodes]; 
         public static double Mg[][] = new double[numberOfNodes][numberOfNodes];
         /*The expansion operator is responsible for allowing
         flow to connect different regions of the graph. */
@@ -138,6 +140,7 @@ public class RMCL{
 				Mg[row][col] = transMatrix[row][col];
 			} 
 		}
+                normalise();
 	}
 	/*Implementation of the Markov clustering algorithm*/ 
         /*1. Input is an un-directed graph, power parameter e,
@@ -155,14 +158,16 @@ public class RMCL{
 		//Markov Cluster Algorithm
 		int iteration = 1;
 		System.out.println("Iteration "+iteration);
-		transMatrix = expand();
+		transMatrix = regularize();
 		inflate();
-		iteration++;
+		iteration++; 
+                normalise(); 
 		while(!checkConvergence()){
 			System.out.println("Iteration "+iteration);
-			transMatrix = expand();
+			transMatrix = regularize();
 			inflate();
-			iteration++;
+			iteration++; 
+                        prune();
 		}
 		//System.out.println("Convergence Reached. The Matrix is: ");
 		//printMatrix(transMatrix);
@@ -171,7 +176,8 @@ public class RMCL{
 	/*Convergence to a state where probability is steady such that every column value has the same 
           number. Returns a true/false value*/
 	public static boolean checkConvergence(){
-		double prev = -1; 
+		
+                double prev = -1; 
                 /*Use the previous variable (prev) to check if after inflation/expansion if the value of columns are the same 
                 if it is not the same, return false and continue to run while loop*/
 		for(int j = 0;j<numberOfNodes;j++){
@@ -188,22 +194,23 @@ public class RMCL{
 				}
 			}
 		}
-		return true;
-	} 
-        
+		return true; 
+               
+     
+        }
         /* Expansion coincides with taking the power of a stochastic matrix using the normal matrix product (i.e. matrix squaring) 
         Expansion corresponds to computing random walks of higher length, which means random walks with many steps.  
         It associates new probabilities with all pairs of nodes, where one node is the point of departure and the other is the destination.  
         Since higher length paths are more common within clusters than between different clusters, the probabilities associated with node pairs  
         lying in the same cluster will, in general, be relatively large as there are many ways of going from one to the other. */
-	public static double[][] expand(){
+	public static double[][] regularize(){
 		double[][] matrix = new double[numberOfNodes][numberOfNodes];
-		int  p = power; 
-		while(p>1){
+		int  p = power;  
+               while(p>1){
 			for(int i = 0;i<numberOfNodes;i++){
 				for(int j = 0;j<numberOfNodes;j++){
 					for(int k = 0;k<numberOfNodes;k++){
-						matrix[i][j] += (transMatrix[i][k]*Mg[k][j]); 
+						transMatrix[i][j] += matrix[i][k]*Mg[k][j]; 
 					}
 				}
 			}
@@ -234,7 +241,44 @@ public class RMCL{
 			}
 		}
 	}
-	
+	public static void prune(){ 
+            double[][] matrix = new double[numberOfNodes][numberOfNodes]; 
+            double avg, mx;  
+            int i,j,k;
+            for(i = 0;i<numberOfNodes;i++){
+			for(j = 0;j<numberOfNodes;j++){
+				matrix[i][j] = transMatrix[i][j];
+			}
+		} 
+            for (j=0; j<numberOfNodes;j++){ 
+                avg = 0; 
+                mx = -1.0; 
+                for (k = 0; k <numberOfNodes; k++){ 
+                    avg = avg + matrix[k][j]; 
+                    mx = max(mx,matrix[k][j]);
+                } 
+                avg = avg/(numberOfNodes-1); 
+                double threshold = avg/4; 
+                for (i = 0; i<numberOfNodes; i++){ 
+                    if (transMatrix[i][j] < threshold){ 
+                        transMatrix[i][j] = 0;
+                    }
+                }
+            } 
+            normalise();
+        } 
+        public static void normalise(){ 
+            double csum; 
+            for (int j = 0; j<numberOfNodes; j++){ 
+                csum = 0; 
+                for (int k = 0; k< numberOfNodes; k++){ 
+                    csum = csum + transMatrix[k][j]; 
+                } 
+                for (int i =0; i<numberOfNodes; i++){ 
+                    transMatrix[i][j] = transMatrix[i][j]/csum;
+                }
+            }
+        }
 	public static int findClusters() throws IOException{ 
                 //File f = new File("yeastoutput.txt"); 
 		File f = new File("attoutput.txt"); 
@@ -267,7 +311,7 @@ public class RMCL{
 		// TODO Auto-generated method stub
 		readData();
 		addSelfLoop();
-		//printMatrix(adjMatrix);
+		//(Mg);
 		//System.out.println("Transition Matrix:");
 		constructTransitionMatrix();
 		//printMatrix(Mg);
