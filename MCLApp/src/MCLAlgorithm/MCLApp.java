@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
-
+import java.util.concurrent.TimeUnit;
 
 public class MCLApp {
      
@@ -310,9 +310,13 @@ public class MCLApp {
             iteration++;
             prune();
         }   
-        long t2=System.currentTimeMillis()-t1;
-        System.out.print("Finish convergence in: "); 
-        System.out.println((t2)+"ms");
+        long t2=System.currentTimeMillis()-t1; 
+        System.out.print("Finish convergence in: ");  
+       System.out.println(String.format("%d min, %d sec", 
+            TimeUnit.MILLISECONDS.toMinutes(t2),
+            TimeUnit.MILLISECONDS.toSeconds(t2) - 
+            TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(t2))
+        ));
         System.out.println("The number of clusters are: " + findClusters());
         writeClusters(FileName);
     }
@@ -324,8 +328,8 @@ public class MCLApp {
         TreeSet<String> checkSet = new TreeSet<String>();
         HashMap<String, Integer> fileMap = new HashMap<String, Integer>();
         System.out.println("************* Cluster Results ************");
-
-        BufferedWriter writer = new BufferedWriter(new FileWriter(data + ".clu"));
+        String line;
+        BufferedWriter writer = new BufferedWriter(new FileWriter("./nodes/ClusterResults/R-MCL and MCL test/" + FileName + "MCLResults.txt"));
 
         int clusterNumber = 0;
         for (int i = 0; i < dimensions; i++) {
@@ -339,43 +343,35 @@ public class MCLApp {
 
             if (clusterElements.size() > 0) {
                 clusterNumber++;
-                clusters = 0;
-                System.out.print("Cluster Number " + clusterNumber + ":" + "{");
+                clusters = 0;   
+                writer.write("Cluster Number " + clusterNumber + ":" + "{");
+                System.out.print("Cluster Number " + clusterNumber + ":" + "{"); 
                 for (Integer e : clusterElements) {
-
                     for (String key : stringToID.keySet()) {
                         int value = stringToID.get(key);
                         if (value == e) {
                             if (!checkSet.contains(key)) {
                                 System.out.print(key + ",");
-                                fileMap.put(key, clusterNumber);
+                                fileMap.put(key, clusterNumber); 
+                                writer.write(key + ",");
+                                
                             }
                             checkSet.add(key);
                             numberKeys++;
                         }
-                    }
-                }
+                    } 
+                } 
+                writer.write("}");
                 System.out.println("}");
-
+                writer.newLine();
             }
             clusters++;
             clusterElements.clear();
         }
 
-        /*Writing to File*/
-        writer.write("*Vertices " + dimensions);
-        writer.newLine();
-
-        for (String key : stringToID.keySet()) {
-
-            int value = fileMap.get(key);
-            String toWrite = String.valueOf(value);
-            writer.write(toWrite);
-            writer.newLine();
-        }
         /*write to hashmap*/
         rwHash.writeHashMap(fileMap);
-        writer.close();
+        writer.close(); 
     }
      
     /*find the clusters*/
