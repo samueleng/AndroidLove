@@ -1,4 +1,6 @@
-package MCLAlgorithm;
+package comparison;
+
+
 import java.io.IOException;
 
 /*
