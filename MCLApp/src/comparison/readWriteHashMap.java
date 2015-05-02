@@ -21,7 +21,7 @@ public class readWriteHashMap {
     /*Writing and saving hashmap*/
     
     public void writeHashMap(HashMap hashmap) throws IOException {
-        File file = new File("./results/results1000.txt");//your file
+        File file = new File("./results/clusterData.txt");//your file
         {
             BufferedWriter bw = new BufferedWriter(new FileWriter(file));
             for (Object p : hashmap.keySet()) {
@@ -44,18 +44,19 @@ public class readWriteHashMap {
         while ((line = in.readLine()) != null) {
             String parts[] = line.split(",");
 
-            map.put(parts[0], parts[1]);
+            map.put(parts[0], parts[1]); 
+           
         }
         in.close(); 
-        
+
         String line2 = "";
         while ((line2 = in2.readLine()) != null) {
             String parts2[] = line2.split(",");
 
-            map2.put(parts2[0], parts2[1]);
+            map2.put(parts2[0], parts2[1]); 
         }
         in2.close();
-        //compareHashSet(map, map2); 
+        compareHashSet(map, map2); 
         compareEntries(map, map2); 
         entries_in_common_or_intersection(map,map2);
         System.out.println("*******END OF HASHMAP********");

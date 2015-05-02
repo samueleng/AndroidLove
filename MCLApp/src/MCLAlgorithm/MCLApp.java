@@ -1,5 +1,6 @@
 package MCLAlgorithm; 
 
+import comparison.readWriteHashMap;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
